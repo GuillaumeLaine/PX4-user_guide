@@ -4,13 +4,21 @@
 
 The message translation node allows ROS 2 applications that were compiled against different versions of the PX4 messages to interwork with newer versions of PX4, and vice versa, without having to change either the application or the PX4 side.
 
-Specifically for this to work, topic publication/subscription/service names contain a message version in the form of `<topic_name>_v<version>`.
+## Overview
 
-Specifically, the translation node knows about all message versions previously defined by PX4, and dynamically monitors the publications, subscriptions and services, translating them into the current versions expected by the application and PX4 as needed.
+The translation node has access to all message versions previously defined by PX4. It dynamically observes the DDS data space, monitoring the publications, subscriptions and services originating from either PX4 via the [uXRCE-DDS Bridge](../middleware/uxrce_dds.md), or ROS2 applications. When necessary, it converts messages to the current versions expected by both applications and PX4, ensuring compatibility.
+
+![Overview ROS 2 Message Translation Node](../../assets/middleware/ros2/px4_ros2_interface_lib/translation_node.svg)
+
+<!-- doc source: ../../assets/middleware/ros2/px4_ros2_interface_lib/translation_node.drawio -->
+
+To support the coexistance of different versions of the same messages within the ROS 2 domain, the ROS 2 topic names for publications, subscriptions, and services include their respective message version as a suffix. This naming convention takes the form `<topic_name>_v<version>`, as shown in the diagram above.
 
 ## Installation
 
-1. Create a ROS 2 workspace in which to build the message translation node and its dependencies.
+The following steps describe how to install and run the translation node on your machine.
+
+1. Create a ROS 2 workspace in which to build the message translation node and its dependencies:
 
    ```sh
    mkdir -p /path/to/ros_ws/src
@@ -41,6 +49,61 @@ Specifically, the translation node knows about all message versions previously d
    [INFO] [1734525720.729530513] [translation_node]: Registered pub/sub topics and versions:
    [INFO] [1734525720.729594413] [translation_node]: Registered services and versions:
    ```
+
+With the translation node running, any simultaneously running ROS 2 application designed to communicate with PX4 can do so, as long as it uses message versions recognized by the node.
+
+::: note
+After making a modification in PX4 to the message defintions and/or translation node code, you will need to rerun the steps above from point 2. to update your ROS workspace accordingly.
+:::
+
+## Usage in ROS
+
+While developing a ROS 2 application, it is not necessary to know the specific version of message used to communicate with PX4.
+The message version can be added generically to a topic name like this:
+
+```c++
+topic_name + "_v" + std::to_string(T::MESSAGE_VERSION)
+```
+
+where `T` is the message type, e.g. `px4_msgs::msg::VehicleAttitude`.
+
+For example, the following implements a minimal subscriber and publisher node that uses two versioned PX4 messages and topics:
+
+```c++
+#include <string>
+#include <rclcpp/rclcpp.hpp>
+#include <px4_msgs/msg/vehicle_command.hpp>
+#include <px4_msgs/msg/vehicle_attitude.hpp>
+
+class MinimalPubSub : public rclcpp::Node {
+  public:
+    MinimalPubSub() : Node("minimal_pub_sub") {
+      // Define the appropriate topic to pub/sub to, based on the
+      // message version contained in the message defintion
+      const std::string sub_topic = "/fmu/out/vehicle_attitude_v" + std::to_string(px4_msgs::msg::VehicleAttitude::MESSAGE_VERSION);
+      const std::string pub_topic = "/fmu/in/vehicle_command_v" + std::to_string(px4_msgs::msg::VehicleCommand::MESSAGE_VERSION);
+
+      _subscription = this->create_subscription<px4_msgs::msg::VehicleAttitude>(
+          sub_topic, 10,
+          std::bind(&MinimalPubSub::attitude_callback, this, std::placeholders::_1));
+      _publisher = this->create_publisher<px4_msgs::msg::VehicleCommand>(pub_topic, 10);
+    }
+
+  private:
+    void attitude_callback(const px4_msgs::msg::VehicleAttitude::SharedPtr msg) {
+      RCLCPP_INFO(this->get_logger(), "Received attitude message.");
+    }
+
+    rclcpp::Publisher<px4_msgs::msg::VehicleCommand>::SharedPtr _publisher;
+    rclcpp::Subscription<px4_msgs::msg::VehicleAttitude>::SharedPtr _subscription;
+};
+```
+
+On the PX4 side, the DDS client automatically adds the version suffix if a message definition contains the field `uint32 MESSAGE_VERSION = x`.
+
+::: info
+Version 0 of a topic means that no `_v<version>` suffix should be added.
+:::
 
 ## Updating a Message
 
@@ -74,21 +137,6 @@ If a nested message definition changes, all messages including that message also
 This is primarily important for services.
 :::
 
-## Usage in ROS
-
-The message version can be added generically to a topic like this:
-
-```c++
-topic_name + "_v" + std::to_string(T::MESSAGE_VERSION)
-```
-
-Where `T` is the message type, e.g. `px4_msgs::msg::VehicleAttitude`.
-
-The DDS client in PX4 automatically adds the version suffix if a message contains the field `uint32 MESSAGE_VERSION = x`.
-
-::: info
-Version 0 of a topic means that no `_v<version>` suffix should be added.
-:::
 
 ## Implementation Details
 

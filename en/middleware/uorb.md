@@ -145,6 +145,8 @@ The full API is documented in [platforms/common/uORB/uORBManager.hpp](https://gi
 
 <Badge type="tip" text="main (PX4 v1.16+)" />
 
+Message versioning has been in introduced in PX4 v1.16 to make it easier to maintain compatibility between PX4 and ROS 2 versions.
+
 Message versioning was introduced to address the challenges of maintaining compatibility across systems where different versions of message definitions may be in use, such as between PX4 and external systems like ROS 2 applications.
 
 This versioning mechanism supports the [ROS 2 Message Translation Node](../ros2/px4_ros2_msg_translation_node.md), which enables seamless communication between PX4 and ROS 2 applications; when different versions of message definitions are in use, the ROS 2 translation node ensures that messages can be converted and exchanged correctly.
