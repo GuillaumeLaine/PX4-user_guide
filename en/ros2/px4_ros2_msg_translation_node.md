@@ -132,7 +132,7 @@ This can be used for merging or splitting a message, or when moving a field from
 
 ### File Structure
 
-Starting from PX4 v1.16, the PX4-Autopilot `msg/` and `srv/` directories are structured as follows:
+Starting from PX4 v1.16 (main), the PX4-Autopilot `msg/` and `srv/` directories are structured as follows:
 
 ```
 PX4-Autopilot
@@ -175,7 +175,7 @@ PX4-Autopilot
 - Each file includes a `MESSAGE_VERSION` field.
 - File names reflect the message's version with a suffix (e.g., `V1`, `V2`).
 
-Example directory structure:
+Example directory structure (coherant with example above):
 
 ```
   ...
@@ -195,24 +195,24 @@ Example directory structure:
 - Each translation (direct or generic) is a single `.h` header file.
 - The header `all_translation.h` acts as the main header, and includes all subsequent translation headers.
 
-Example directory structure following the example above:
+Example directory structure (coherant with example above):
 
 ```
   ...
   msg/
   └── translation_node/
     └── translations/
-      ├── all_translations.h            # Main header
-      ├── vehicle_attitude_v1.h         # Direct translation v0 <-> v1
-      ├── vehicle_attitude_v2.h         # Direct translation v1 <-> v2
-      ├── vehicle_attitude_v3.h         # Direct translation v2 <-> latest (v3)
-      ├── vehicle_global_position_v1.h  # Direct translation v0 <-> v1
-      ├── vehicle_global_position_v2.h  # Direct translation v1 <-> latest (v2)
-      ├── vehicle_command_v1.h          # Direct translation v0 <-> v1
-      └── vehicle_command_v2.h          # Direct translation v1 <-> latest (v2)
+      ├── all_translations.h                        # Main header
+      ├── translation_vehicle_attitude_v1.h         # Direct translation v0 <-> v1
+      ├── translation_vehicle_attitude_v2.h         # Direct translation v1 <-> v2
+      ├── translation_vehicle_attitude_v3.h         # Direct translation v2 <-> latest (v3)
+      ├── translation_vehicle_global_position_v1.h  # Direct translation v0 <-> v1
+      ├── translation_vehicle_global_position_v2.h  # Direct translation v1 <-> latest (v2)
+      ├── translation_vehicle_command_v1.h          # Direct translation v0 <-> v1
+      └── translation_vehicle_command_v2.h          # Direct translation v1 <-> latest (v2)
 ```
 
-### Updating a Message
+### Updating a Versioned Message
 
 This section provides a step-by-step walkthrough and a basic working example of what the process of changing a versioned message looks like.
 
@@ -260,7 +260,7 @@ The example describes the process of updating the `VehicleAttitude` message defi
 
     Add a new version translation to bridge the archived version and the new version, by creating a new translation header.
 
-    For example, create a direct translation header `translation_node/translations/vehicle_attitude_v4.h`:
+    For example, create a direct translation header `translation_node/translations/translation_vehicle_attitude_v4.h`:
 
     ```c++
     // Translate VehicleAttitude v3 <--> v4
@@ -308,13 +308,14 @@ The example describes the process of updating the `VehicleAttitude` message defi
     REGISTER_TOPIC_TRANSLATION_DIRECT(VehicleAttitudeV4Translation);
     ```
 
-    Version translation templates are provided here: <!-- (TODO: update GitHub urls) -->
+    Version translation templates are provided here: <!-- TODO: update GitHub urls -->
       - [Direct Message Translation Template](https://github.com/PX4/PX4-Autopilot/blob/message_versioning_and_translation/msg/translation_node/translations/example_translation_direct_v1.h)
       - [Generic Message Translation Template](https://github.com/PX4/PX4-Autopilot/blob/message_versioning_and_translation/msg/translation_node/translations/example_translation_multi_v2.h)
       - [Direct Service Translation Template](https://github.com/PX4/PX4-Autopilot/blob/message_versioning_and_translation/msg/translation_node/translations/example_translation_service_v1.h)
 
 5. **Include New Headers in `all_translations.h`**
 
+    <!-- TODO: update GitHub url -->
     Add all newly created headers to [`translations/all_translations.h`](https://github.com/PX4/PX4-Autopilot/blob/message_versioning_and_translation/msg/translation_node/translations/all_translations.h) so that the translation node can find them.
 
     For example, append the following line to `all_translation.h`:
@@ -333,7 +334,7 @@ This ensures there is no information lost when translating forward or backward.
 ::: warning
 If a nested message definition changes, all messages including that message also require a version update.
 For example this would be the case for message [PositionSetpointTriplet](../msg_docs/PositionSetpointTriplet.md) if it were versioned.
-This is primarily important for services which often reference other message definitions.
+This is primarily important for services which are more likely reference other message definitions.
 :::
 
 ## Implementation Details
@@ -355,7 +356,7 @@ For translations with multiple input topics, the translation continues once all 
 ## Limitations
 
 - The current implementation depends on a service API that is not yet available in ROS Humble, and therefore does not support services when built for ROS Humble.
-- Services only support a linear history, i.e. no message splitting or merging
+- Services only support a linear history, i.e. no message splitting or merging.
 - Having both publishers and subscribers for two different versions of a topic is currently not handled by the translation node and would trigger infinite circular publications.
   This could be extended if required.
 

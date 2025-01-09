@@ -145,16 +145,19 @@ The full API is documented in [platforms/common/uORB/uORBManager.hpp](https://gi
 
 <Badge type="tip" text="main (PX4 v1.16+)" />
 
-Message versioning has been in introduced in PX4 v1.16 to make it easier to maintain compatibility between PX4 and ROS 2 versions.
+Message versioning has been in introduced in PX4 v1.16 (main) to make it easier to maintain compatibility between PX4 and ROS 2 versions.
+
+Versioned messages include an additional field `uint32 MESSAGE_VERSION = x`, where `x` corresponds to the current version of the message.
+Versioned message files are stored separetly from their non-versioned counterpart.
+Topic message files are located under `msg/versioned` and service message files are located under `srv/versioned`.
+Non-versioned messages remain in the `msg/` and `srv/` directories respectively.
 
 This versioning mechanism supports the [ROS 2 Message Translation Node](../ros2/px4_ros2_msg_translation_node.md), which enables seamless communication between PX4 and ROS 2 applications; when different versions of message definitions are in use, the ROS 2 translation node ensures that messages can be converted and exchanged correctly.
 
-Versioned messages are stored in the `msg/versioned/` directory (distinct from their non-versioned counterparts, which reside directly in the `msg/` directory).
-Each versioned message definition includes an additional field: `uint32 MESSAGE_VERSION = X`, where `X` corresponds to the current version of the message.
-When a versioned message definition is modified, the version number should be incremented to reflect changes in its structure or semantics.
-Additionally, [message translations](../ros2/px4_ros2_msg_translation_node.md#updating-a-message) must also be updated for versioned messages, in order to convert from the old version to the new structure.
-
 Versioned messages are designed to remain more stable over time compared to their non-versioned counterparts, as they are intended to be used across multiple releases of PX4 and external systems, ensuring greater compatibility over longer periods.
+
+Updating a versioned message involves more steps compared to updating a non-versioned one.
+Please see the section on [Updating a Versioned Message](../ros2/px4_ros2_msg_translation_node.md#updating-a-versioned-message).
 
 For the full list of versioned and non-versioned messages, refer to the [uORB Message Reference](../msg_docs/index.md).
 
