@@ -267,6 +267,13 @@ To create and build the workspace:
    git clone https://github.com/PX4/px4_ros_com.git
    ```
 
+1. __(Optional)__ From PX4 v1.16 (main), include the [Message Translation Node](../ros2/px4_ros2_msg_translation_node.md) into your workspace by running the following script.
+This step is useful only if using a PX4 and px4_msgs which contain different message versions.
+
+   ```sh
+   /path/to/PX4-Autopilot/Tools/copy_to_ros_ws.sh ../
+   ```
+
 1. Source the ROS 2 development environment into the current terminal and compile the workspace using `colcon`:
 
    :::: tabs
@@ -335,6 +342,12 @@ In a new terminal:
 
    ```sh
    source install/local_setup.bash
+   ```
+
+1. __(Optional)__ If the [Message Translation Node](../ros2/px4_ros2_msg_translation_node.md) was added to the workspace in the previous steps, run the translation node:
+
+   ```sh
+   ros2 run translation_node translation_node_bin
    ```
 
 1. Now launch the example.

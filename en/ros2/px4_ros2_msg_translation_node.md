@@ -22,27 +22,27 @@ To support the coexistence of different versions of the same messages within the
 
 The following steps describe how to install and run the translation node on your machine.
 
-1. Create a ROS 2 workspace in which to build the message translation node and its dependencies:
+1. (Optional) Create a new ROS 2 workspace in which to build the message translation node and its dependencies:
 
    ```sh
    mkdir -p /path/to/ros_ws/src
    ```
 
-2. Run the following helper script to copy the message definitions and translation node into your ROS workspace directory.
+1. Run the following helper script to copy the message definitions and translation node into your ROS workspace directory.
 
    ```sh
    cd /path/to/ros_ws
    /path/to/PX4-Autopilot/Tools/copy_to_ros_ws.sh .
    ```
 
-3. Build and source the workspace.
+1. Build and source the workspace.
 
    ```sh
    colcon build
    source /path/to/ros_ws/install/setup.bash
    ```
 
-4. Finally, run the translation node.
+1. Finally, run the translation node.
 
    ```sh
    ros2 run translation_node translation_node_bin
@@ -66,13 +66,33 @@ After making a modification in PX4 to the message defintions and/or translation 
 While developing a ROS 2 application that communicates with PX4, it is not necessary to know the specific version of a message being used.
 The message version can be added generically to a topic name like this:
 
+:::: tabs
+
+::: tab C++
+
 ```c++
 topic_name + "_v" + std::to_string(T::MESSAGE_VERSION)
 ```
 
+:::
+
+::: tab Python
+
+```python
+topic_name + "_v" + VehicleAttitude.MESSAGE_VERSION
+```
+
+:::
+
+::::
+
 where `T` is the message type, e.g. `px4_msgs::msg::VehicleAttitude`.
 
 For example, the following implements a minimal subscriber and publisher node that uses two versioned PX4 messages and topics:
+
+:::: tabs
+
+::: tab C++
 
 ```c++
 #include <string>
@@ -105,6 +125,47 @@ class MinimalPubSub : public rclcpp::Node {
     rclcpp::Subscription<px4_msgs::msg::VehicleAttitude>::SharedPtr _subscription;
 };
 ```
+
+:::
+
+::: tab Python
+
+```python
+import rclpy
+from rclpy.node import Node
+from px4_msgs.msg import VehicleCommand, VehicleAttitude
+
+class MinimalPubSub(Node):
+    def __init__(self):
+        super().__init__('minimal_pub_sub')
+
+        # Define the topics to publish and subscribe to
+        # The correct message version is directly inferred from the message definition
+        sub_topic = f"/fmu/out/vehicle_attitude_v{VehicleAttitude.MESSAGE_VERSION}"
+        pub_topic = f"/fmu/in/vehicle_command_v{VehicleCommand.MESSAGE_VERSION}"
+
+        # Create subscription
+        self._subscription = self.create_subscription(
+            VehicleAttitude,
+            sub_topic,
+            self.attitude_callback,
+            10
+        )
+
+        # Create publisher
+        self._publisher = self.create_publisher(
+            VehicleCommand,
+            pub_topic,
+            10
+        )
+
+    def attitude_callback(self, msg):
+        self.get_logger().info("Received attitude message.")
+```
+
+:::
+
+::::
 
 On the PX4 side, the DDS client automatically adds the version suffix if a message definition contains the field `uint32 MESSAGE_VERSION = x`.
 
@@ -227,7 +288,7 @@ The example describes the process of updating the `VehicleAttitude` message defi
     For example:<br>
     Move `msg/versioned/VehicleAttitude.msg` → `px4_msgs_old/msg/VehicleAttitudeV3.msg`
 
-2. **Update Translation References to the Archived Definition**
+1. **Update Translation References to the Archived Definition**
 
     Update the existing translations header files `msg/translation_node/translations/*.h` to reference the newly archived version.
 
@@ -235,7 +296,7 @@ The example describes the process of updating the `VehicleAttitude` message defi
     - Replace `px4_msgs::msg::VehicleAttitude` → `px4_msgs_old::msg::VehicleAttitudeV3`
     - Replace `#include <px4_msgs/msg/vehicle_attitude.hpp>` → `#include <px4_msgs_old/msg/vehicle_attitude_v3.hpp>`
 
-3. **Increment `MESSAGE_VERSION` and Modify Fields of the New Definition**
+1. **Increment `MESSAGE_VERSION` and Modify Fields of the New Definition**
 
     Increment the `MESSAGE_VERSION` field in the new message definition and update the message fields that prompted the version change.
 
@@ -256,7 +317,7 @@ The example describes the process of updating the `VehicleAttitude` message defi
     ...
     ```
 
-4. **Add a New Translation Header**
+1. **Add a New Translation Header**
 
     Add a new version translation to bridge the archived version and the new version, by creating a new translation header.
 
@@ -313,7 +374,7 @@ The example describes the process of updating the `VehicleAttitude` message defi
       - [Generic Message Translation Template](https://github.com/PX4/PX4-Autopilot/blob/message_versioning_and_translation/msg/translation_node/translations/example_translation_multi_v2.h)
       - [Direct Service Translation Template](https://github.com/PX4/PX4-Autopilot/blob/message_versioning_and_translation/msg/translation_node/translations/example_translation_service_v1.h)
 
-5. **Include New Headers in `all_translations.h`**
+1. **Include New Headers in `all_translations.h`**
 
     <!-- TODO: update GitHub url -->
     Add all newly created headers to [`translations/all_translations.h`](https://github.com/PX4/PX4-Autopilot/blob/message_versioning_and_translation/msg/translation_node/translations/all_translations.h) so that the translation node can find them.
