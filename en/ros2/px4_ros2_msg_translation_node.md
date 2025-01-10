@@ -56,9 +56,10 @@ The following steps describe how to install and run the translation node on your
    ```
 
 With the translation node running, any simultaneously running ROS 2 application designed to communicate with PX4 can do so, as long as it uses message versions recognized by the node.
+The translation node will print a warning if it encounters an unknown topic version.
 
 ::: note
-After making a modification in PX4 to the message defintions and/or translation node code, you will need to rerun the steps above from point 2. to update your ROS workspace accordingly.
+After making a modification in PX4 to the message definitions and/or translation node code, you will need to rerun the steps above from point 2. to update your ROS workspace accordingly.
 :::
 
 ### In ROS Applications
@@ -100,15 +101,20 @@ For example, the following implements a minimal subscriber and publisher node th
 #include <px4_msgs/msg/vehicle_command.hpp>
 #include <px4_msgs/msg/vehicle_attitude.hpp>
 
+// Template function to get the message version suffix
+// The correct message version is directly inferred from the message defintion
+template <typename T>
+std::string getMessageNameVersion() {
+    if (T::MESSAGE_VERSION == 0) return "";
+    return "_v" + std::to_string(T::MESSAGE_VERSION);
+}
+
 class MinimalPubSub : public rclcpp::Node {
   public:
     MinimalPubSub() : Node("minimal_pub_sub") {
-      // Define the topics to publish and subscribe to
-      // The correct message version is directly inferred from the message defintion
-      const std::string sub_topic =
-        "/fmu/out/vehicle_attitude_v" + std::to_string(px4_msgs::msg::VehicleAttitude::MESSAGE_VERSION);
-      const std::string pub_topic =
-        "/fmu/in/vehicle_command_v" + std::to_string(px4_msgs::msg::VehicleCommand::MESSAGE_VERSION);
+      // Use template function to define the correct topics automatically
+      const std::string sub_topic = "/fmu/out/vehicle_attitude" + getMessageNameVersion<px4_msgs::msg::VehicleAttitude>();
+      const std::string pub_topic = "/fmu/in/vehicle_command" + getMessageNameVersion<px4_msgs::msg::VehicleCommand>();
 
       _subscription = this->create_subscription<px4_msgs::msg::VehicleAttitude>(
           sub_topic, 10,
@@ -135,16 +141,21 @@ import rclpy
 from rclpy.node import Node
 from px4_msgs.msg import VehicleCommand, VehicleAttitude
 
+# Helper function to get the message version suffix
+# The correct message version is directly inferred from the message defintion
+def get_message_name_version(msg_class):
+    if msg_class.MESSAGE_VERSION == 0:
+        return ""
+    return f"_v{msg_class.MESSAGE_VERSION}"
+
 class MinimalPubSub(Node):
     def __init__(self):
         super().__init__('minimal_pub_sub')
 
-        # Define the topics to publish and subscribe to
-        # The correct message version is directly inferred from the message definition
-        sub_topic = f"/fmu/out/vehicle_attitude_v{VehicleAttitude.MESSAGE_VERSION}"
-        pub_topic = f"/fmu/in/vehicle_command_v{VehicleCommand.MESSAGE_VERSION}"
+        # Use helper function to define the correct topics automatically
+        sub_topic = f"/fmu/out/vehicle_attitude{get_message_name_version(VehicleAttitude)}"
+        pub_topic = f"/fmu/in/vehicle_command{get_message_name_version(VehicleCommand)}"
 
-        # Create subscription
         self._subscription = self.create_subscription(
             VehicleAttitude,
             sub_topic,
@@ -152,7 +163,6 @@ class MinimalPubSub(Node):
             10
         )
 
-        # Create publisher
         self._publisher = self.create_publisher(
             VehicleCommand,
             pub_topic,
@@ -283,10 +293,10 @@ The example describes the process of updating the `VehicleAttitude` message defi
 
 1. **Archive the Current Definition**
 
-    Copy the versioned `.msg` topic message file (or `.srv` service message file) to `px4_msgs_old/msg/` (or `px4_msgs_old/srv/`), and append the current version to the file name.<br>
+    Copy the versioned `.msg` topic message file (or `.srv` service message file) to `px4_msgs_old/msg/` (or `px4_msgs_old/srv/`), and append the current version to the file name.
 
     For example:<br>
-    Move `msg/versioned/VehicleAttitude.msg` → `px4_msgs_old/msg/VehicleAttitudeV3.msg`
+    Copy `msg/versioned/VehicleAttitude.msg` → `px4_msgs_old/msg/VehicleAttitudeV3.msg`
 
 1. **Update Translation References to the Archived Definition**
 
@@ -300,7 +310,7 @@ The example describes the process of updating the `VehicleAttitude` message defi
 
     Increment the `MESSAGE_VERSION` field in the new message definition and update the message fields that prompted the version change.
 
-    For example, update `msg/versioned/VehicleAttitude.msg` from:<br>
+    For example, update `msg/versioned/VehicleAttitude.msg` from:
 
     ```c++
     uint32 MESSAGE_VERSION = 3
